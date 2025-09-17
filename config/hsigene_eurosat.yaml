@@ -1,0 +1,19 @@
+# config/hsigene_eurosat.yaml
+training:
+  epochs: 10
+  batch_size: 16
+  lr: 0.0002
+  num_workers: 0
+
+data:
+  dataset: eurosat
+  # root expected for EuroSATWrapper: ImageFolder style
+  # e.g. data/EuroSAT/train/<class>/*.jpg and data/EuroSAT/val/<class>/*.jpg
+  eurosat_root: data/EuroSAT
+  patch_size: 64
+  num_samples: 2000
+
+# model IO / architecture sizes -- keep these consistent with your model
+seed: 42
+in_channels: 3     # EuroSAT RGB -> 3 input channels
+out_channels: 200  # Dummy HSI target channels used by trainer (adjust if model expects different)

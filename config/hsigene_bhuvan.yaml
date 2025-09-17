@@ -1,0 +1,10 @@
+training:
+  epochs: 10
+  batch_size: 8         # keep smaller due to possible large TIFF sizes
+  lr: 0.0002
+
+data:
+  dataset: bhuvan
+  root_dir: data/Bhuvan/   # Path to downloaded Bhuvan imagery
+  patch_size: 64
+  num_samples: 1000

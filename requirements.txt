@@ -1,0 +1,20 @@
+# core ML and utility libs
+torch
+torchvision
+torchaudio
+torchmetrics
+numpy
+scipy
+scikit-learn
+matplotlib
+seaborn
+opencv-python
+tqdm
+pyyaml
+einops
+
+# geospatial reading (may require conda on Windows)
+rasterio
+
+# experiment tracking (optional)
+wandb

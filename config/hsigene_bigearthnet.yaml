@@ -1,0 +1,19 @@
+# config/hsigene_bigearthnet.yaml
+training:
+  epochs: 10
+  batch_size: 16
+  lr: 0.0002
+  num_workers: 0
+
+data:
+  dataset: bigearthnet
+  # bigearthnet_root should point to a folder with splits, 
+  # e.g. data/BigEarthNet-S2/train/*.pt  and data/BigEarthNet-S2/val/*.pt
+  bigearthnet_root: data/BigEarthNet-S2
+  patch_size: 64
+  num_samples: 5000
+
+# model IO / architecture sizes
+seed: 42
+in_channels: 5     # adjust to number of MSI bands per sample (e.g., 4 or 5). Match the .pt shape.
+out_channels: 200  # HSI target bands (placeholder if you don't have real HSI)

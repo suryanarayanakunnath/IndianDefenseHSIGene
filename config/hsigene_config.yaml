@@ -1,0 +1,28 @@
+in_channels: 14
+out_channels: 200
+bilinear: true
+
+batch_size: 1
+epochs: 2
+g_lr: 0.0002
+d_lr: 0.0002
+g_steps: 1
+d_steps: 1
+
+loss_weights:
+  adversarial: 1.0
+  physics: 10.0
+  sam: 5.0
+  smoothness: 1.0
+
+lambda_gp: 10.0
+dataset_size: 10
+num_workers: 0
+save_freq: 1
+validation_freq: 1
+
+use_wandb: false
+experiment_name: "hsigene_test"
+seed: 42
+
+device: "cpu"
