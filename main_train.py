@@ -1,106 +1,62 @@
-# main_train.py - entry point
-import os, torch, yaml, argparse
-from torch.utils.data import DataLoader, Dataset
-from torchvision import datasets, transforms
-from src.training.trainer import HSIGeneTrainer
+import os
+import torch
+from torch.utils.data import DataLoader
+from loader.patch_loader import PatchDataset
+from models.simple_cnn import SimpleCNN
 
-def load_config(config_path):
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
+# ---- SETTINGS ----
+PATCH_DIRS = [
+    "data/eurosat",
+    "data/bigearthnet_patches",
+    "data/bhuvan_patches"
+]
+PATCH_SIZE = 64
+BATCH_SIZE = 16
+EPOCHS = 10
+LEARNING_RATE = 1e-3
+NUM_CLASSES = len(PATCH_DIRS)  # Change if more classes/labels
+IN_CHANNELS = 13  # Example: Sentinel-2 bands; +1 if NDVI added
 
-# -------------------------
-# Dummy Dataset
-# -------------------------
-class DummyDataset(Dataset):
-    def __init__(self, split, config):
-        self.split = split
-        self.size = config.get('dataset_size', 100)
-        self.in_channels = config['in_channels']
-        self.out_channels = config['out_channels']
+# ---- DATA LOADER ----
+# Update red_idx and nir_idx according to your dataset's band order!
+RED_IDX = 3  # Example: Sentinel-2 Red band index
+NIR_IDX = 7  # Example: Sentinel-2 NIR band index
 
-    def __len__(self):
-        return self.size
+dataset = PatchDataset(
+    patch_dirs=PATCH_DIRS,
+    add_ndvi=True,
+    red_idx=RED_IDX,
+    nir_idx=NIR_IDX
+)
+dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-    def __getitem__(self, idx):
-        msi_bhuvan = torch.randn(self.in_channels, 64, 64)
-        target = torch.randn(self.out_channels, 64, 64)
-        return msi_bhuvan, target
+# ---- MODEL ----
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = SimpleCNN(in_channels=IN_CHANNELS+1, num_classes=NUM_CLASSES).to(device)  # +1 for NDVI
 
-# -------------------------
-# EuroSAT Dataset Wrapper
-# -------------------------
-class EuroSATWrapper(Dataset):
-    def __init__(self, root, split, config):
-        transform = transforms.Compose([
-            transforms.Resize((64, 64)),
-            transforms.ToTensor()
-        ])
-        self.dataset = datasets.ImageFolder(root=os.path.join(root, split), transform=transform)
-        self.out_channels = config['out_channels']
+optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+criterion = torch.nn.CrossEntropyLoss()
 
-    def __len__(self):
-        return len(self.dataset)
+# ---- TRAINING LOOP ----
+for epoch in range(EPOCHS):
+    model.train()
+    running_loss = 0.0
+    for patches, labels in dataloader:
+        patches = torch.tensor(patches, dtype=torch.float32).to(device)
+        # Encode labels as integers if needed
+        if isinstance(labels[0], str):
+            label_set = list(sorted(set(labels)))
+            labels = torch.tensor([label_set.index(l) for l in labels], dtype=torch.long).to(device)
+        else:
+            labels = torch.tensor(labels, dtype=torch.long).to(device)
 
-    def __getitem__(self, idx):
-        img, _ = self.dataset[idx]  # EuroSAT RGB (3 channels)
-        target = torch.randn(self.out_channels, 64, 64)  # dummy HSI target
-        return img, target
+        optimizer.zero_grad()
+        outputs = model(patches)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        running_loss += loss.item()
 
-# -------------------------
-# BigEarthNet-S2 Wrapper
-# -------------------------
-class BigEarthNetWrapper(Dataset):
-    def __init__(self, root, split, config):
-        self.root = os.path.join(root, split)
-        self.files = [os.path.join(self.root, f) for f in os.listdir(self.root) if f.endswith('.pt')]
-        self.out_channels = config['out_channels']
+    print(f"Epoch {epoch+1}/{EPOCHS} - Loss: {running_loss/len(dataloader):.4f}")
 
-    def __len__(self):
-        return len(self.files)
-
-    def __getitem__(self, idx):
-        sample = torch.load(self.files[idx])  # (bands, H, W)
-        target = torch.randn(self.out_channels, sample.shape[1], sample.shape[2])  # dummy
-        return sample, target
-
-# -------------------------
-# Dataloader Factory
-# -------------------------
-def create_dataloader(config, split):
-    dataset_name = config.get("dataset", "dummy").lower()
-    if dataset_name == "dummy":
-        dataset = DummyDataset(split, config)
-    elif dataset_name == "eurosat":
-        dataset = EuroSATWrapper(config['eurosat_root'], split, config)
-    elif dataset_name == "bigearthnet":
-        dataset = BigEarthNetWrapper(config['bigearthnet_root'], split, config)
-    else:
-        raise ValueError(f"Unknown dataset: {dataset_name}")
-
-    return DataLoader(
-        dataset,
-        batch_size=config['batch_size'],
-        shuffle=(split == 'train'),
-        num_workers=config.get('num_workers', 0)
-    )
-
-# -------------------------
-# Main
-# -------------------------
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', default='config/hsigene_config.yaml')
-    args = parser.parse_args()
-    config = load_config(args.config)
-
-    torch.manual_seed(config['seed'])
-    trainer = HSIGeneTrainer(config)
-
-    train_loader = create_dataloader(config, 'train')
-    val_loader = create_dataloader(config, 'val')
-
-    trainer.train(train_loader, val_loader, config['epochs'])
-    print("Training done")
-
-if __name__ == '__main__':
-    main()
+print("Training complete.")
