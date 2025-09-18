@@ -1,0 +1,1 @@
+python scripts/patch_bigearthnet.py --tile_path /path/to/tile.npy --patch_size 64 --stride 32 --out_dir data/bigearthnet_patches
